@@ -1,0 +1,522 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "Nano Helix Control Plane API",
+        "version": "0.1.0"
+    },
+    "servers": [
+        {
+            "url": "https://nanohelix-control-plane-lnlzfrc3zq-uc.a.run.app",
+            "description": "Production API"
+        }
+    ],
+    "paths": {
+        "/health": {
+            "get": {
+                "summary": "Health",
+                "description": "External healthcheck endpoint. Requires valid x-api-key.",
+                "operationId": "health_health_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/healthz": {
+            "get": {
+                "summary": "Health Internal",
+                "description": "Internal healthcheck endpoint for Cloud Run probes. No authentication required.",
+                "operationId": "health_internal_healthz_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/upload/{filename}": {
+            "put": {
+                "summary": "Upload File",
+                "description": "Generate presigned upload URL for file upload (Option B).\n\nThis endpoint returns a presigned URL that clients can use to upload files directly\nto the storage backend, avoiding the need to stream through the control plane.",
+                "operationId": "upload_file_upload__filename__put",
+                "parameters": [
+                    {
+                        "name": "filename",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Filename"
+                        }
+                    },
+                    {
+                        "name": "folder",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "title": "Folder"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/submit-job": {
+            "post": {
+                "summary": "Submit Job",
+                "description": "Submit a new job for processing.\n\nPhase 5 implementation:\n- Validate jobName uniqueness in Firestore\n- Persist jobs/{jobName} with QUEUED status\n- Generate fake input_yaml_url & output_prefix_url\n- POST to runner /v1/jobs  \n- Update job to RUNNING status",
+                "operationId": "submit_job_submit_job_post",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/files": {
+            "get": {
+                "summary": "List Files",
+                "description": "List uploaded files for the authenticated organization.\n\nQuery parameters:\n- limit: Maximum number of files to return (default 50)\n- folder: Filter files by folder (optional)",
+                "operationId": "list_files_files_get",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 50,
+                            "title": "Limit"
+                        }
+                    },
+                    {
+                        "name": "folder",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "title": "Folder"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/jobs": {
+            "get": {
+                "summary": "Get Jobs",
+                "description": "List jobs for the authenticated organization.\n\nPhase 6 implementation with Firestore queries and filtering support.\nSupports pagination using startKey for efficient large result sets.",
+                "operationId": "get_jobs_jobs_get",
+                "parameters": [
+                    {
+                        "name": "jobName",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Filter by specific job name",
+                            "title": "Jobname"
+                        },
+                        "description": "Filter by specific job name"
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 100,
+                            "minimum": 1,
+                            "description": "Maximum number of jobs to return",
+                            "default": 50,
+                            "title": "Limit"
+                        },
+                        "description": "Maximum number of jobs to return"
+                    },
+                    {
+                        "name": "startKey",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Pagination cursor for next page",
+                            "title": "Startkey"
+                        },
+                        "description": "Pagination cursor for next page"
+                    },
+                    {
+                        "name": "batch",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Filter by batch ID",
+                            "title": "Batch"
+                        },
+                        "description": "Filter by batch ID"
+                    },
+                    {
+                        "name": "organization",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "description": "Return all jobs in organization",
+                            "default": false,
+                            "title": "Organization"
+                        },
+                        "description": "Return all jobs in organization"
+                    },
+                    {
+                        "name": "includeSubjobs",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "description": "Include subjob details",
+                            "default": false,
+                            "title": "Includesubjobs"
+                        },
+                        "description": "Include subjob details"
+                    },
+                    {
+                        "name": "jobEmail",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Filter by user email",
+                            "title": "Jobemail"
+                        },
+                        "description": "Filter by user email"
+                    },
+                    {
+                        "name": "algorithm",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Filter by algorithm type (e.g., 'boltz', 'rfdiffusion')",
+                            "title": "Algorithm"
+                        },
+                        "description": "Filter by algorithm type (e.g., 'boltz', 'rfdiffusion')"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/algorithms": {
+            "get": {
+                "summary": "Get Algorithms",
+                "description": "Get available algorithms for the authenticated tenant.\n\nPhase 8.5 implementation:\n- Returns algorithm list specific to tenant configuration\n- Includes algorithm metadata like version, capabilities\n- Used for algorithm discovery and UI population",
+                "operationId": "get_algorithms_algorithms_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/result": {
+            "post": {
+                "summary": "Result",
+                "description": "Return presigned URLs for job results.\n\nPhase 6 implementation (stub):\n- Checks if job status is COMPLETED\n- Returns presigned GET URL for results (dummy URL for now)",
+                "operationId": "result_result_post",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/jobs/webhook": {
+            "post": {
+                "summary": "Jobs Webhook",
+                "description": "Receive webhook notifications from runner services.\n\nPhase 7 implementation:\n- Validate bearer token\n- Update job status in Firestore\n- Store metrics and result files info",
+                "operationId": "jobs_webhook_jobs_webhook_post",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/debug/org": {
+            "get": {
+                "summary": "Debug Org",
+                "description": "Debug endpoint to check organization data.",
+                "operationId": "debug_org_debug_org_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/debug/storage": {
+            "get": {
+                "summary": "Debug Storage",
+                "description": "Debug endpoint to test storage signing.",
+                "operationId": "debug_storage_debug_storage_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/debug/storage/test-upload": {
+            "post": {
+                "summary": "Debug Storage Upload",
+                "description": "Debug endpoint to test actual file upload.",
+                "operationId": "debug_storage_upload_debug_storage_test_upload_post",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/upload/{file_id}/complete": {
+            "post": {
+                "summary": "Complete Upload",
+                "description": "Mark a file upload as complete and update metadata.\n\nThis endpoint should be called after the client successfully uploads to the presigned URL\nto update the file size and mark it as complete.",
+                "operationId": "complete_upload_upload__file_id__complete_post",
+                "parameters": [
+                    {
+                        "name": "file_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "File Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "HTTPValidationError": {
+                "properties": {
+                    "detail": {
+                        "items": {
+                            "$ref": "#/components/schemas/ValidationError"
+                        },
+                        "type": "array",
+                        "title": "Detail"
+                    }
+                },
+                "type": "object",
+                "title": "HTTPValidationError"
+            },
+            "ValidationError": {
+                "properties": {
+                    "loc": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "integer"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Location"
+                    },
+                    "msg": {
+                        "type": "string",
+                        "title": "Message"
+                    },
+                    "type": {
+                        "type": "string",
+                        "title": "Error Type"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "loc",
+                    "msg",
+                    "type"
+                ],
+                "title": "ValidationError"
+            }
+        }
+    }
+}

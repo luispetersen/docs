@@ -3,16 +3,15 @@ title: Quickstart
 sidebar_position: 1
 ---
 
-# Nano Helix API – Quick-Start Guide (v1 · 2024-06)
+# Nano Helix API – Quick-Start Guide
 
 Welcome to the Nano Helix **Control-Plane API**. This page walks you through the entire workflow:
 
 1. Authenticate with an `x-api-key`
 2. Upload input files (optional)
-3. Discover available algorithms
-4. Submit a simulation job
-5. Track job progress
-6. Download results
+3. Submit a simulation job
+4. Track job progress
+5. Download results
 
 Every section includes copy-ready **cURL** and **Python** snippets.
 
@@ -32,30 +31,10 @@ https://api.nanohelix.ai
 
 A `401 Unauthorized` response means the header is missing or the key is invalid/disabled.
 
----
-
-## 2. Health Check
-
-Quick connectivity test:
-
-```bash
-curl -H "x-api-key: $API_KEY" \
-     https://api.nanohelix.ai/health
-```
-
-Successful response:
-
-```json
-{
-  "status": "ok",
-  "orgId": "org_123",
-  "firestoreProject": "nanohelix-prod"
-}
-```
 
 ---
 
-## 3. Uploading Input Files *(optional)*
+## 2. Uploading Input Files *(optional)*
 
 If your algorithm takes external files (FASTA, PDB, etc.) you will:
 
@@ -87,11 +66,11 @@ Response (abridged):
 }
 ```
 
-### 3.2 Upload the file
+### 2.2 Upload the file
 
 Run the `curlExample` exactly as returned, or use any S3/GCS-compatible client.
 
-### 3.3 Mark upload complete
+### 2.3 Mark upload complete
 
 ```bash
 curl -X POST \
@@ -103,26 +82,7 @@ curl -X POST \
 
 ---
 
-## 4. Discover Available Algorithms
-
-```bash
-curl -H "x-api-key: $API_KEY" \
-     https://api.nanohelix.ai/algorithms
-```
-
-Example response:
-
-```json
-[
-  { "name": "boltz",       "version": "2.1.1", "status": "online" },
-  { "name": "rfdiffusion", "version": "1.0.0", "status": "online" },
-  { "name": "alphafold",   "version": "2.3.1", "status": "online" }
-]
-```
-
----
-
-## 5. Submit a Job
+## 3. Submit a Job
 
 ```bash
 curl -X POST \
@@ -154,7 +114,7 @@ curl -X POST \
 
 ---
 
-## 6. Track Jobs
+## 4. Track Jobs
 
 ```
 GET /jobs
@@ -177,7 +137,7 @@ curl -H "x-api-key: $API_KEY" \
 
 ---
 
-## 7. Download Results
+## 5. Download Results
 
 Results are available only when `status = COMPLETED`.
 
@@ -206,42 +166,7 @@ curl -o results.zip "https://storage.googleapis.com/…"
 
 ---
 
-## 8. List Uploaded Files
-
-```
-GET /files
-```
-
-| Param   | Default | Notes                     |
-| ------- | ------- | ------------------------- |
-| `limit` | 50      | 1-100                     |
-| `folder`| —       | Prefix filter (e.g. `inputs/`)|
-
-```bash
-curl -H "x-api-key: $API_KEY" \
-     "https://api.nanohelix.ai/files?folder=inputs&limit=25"
-```
-
----
-
-## 9. Error Format
-
-All errors share the same envelope:
-
-```json
-{
-  "error": {
-    "code": "ALGORITHM_NOT_AVAILABLE",
-    "message": "Algorithm 'foo' not available for tenant"
-  }
-}
-```
-
-Check `error.code` **and** the HTTP status (e.g. `400`, `409`, `422`).
-
----
-
-## 10. Python Quick-Start
+## 6. Python Quick-Start
 
 ```python title="quickstart.py"
 import os, requests, json
@@ -267,15 +192,6 @@ print(resp.json())
 status = requests.get(f"{BASE}/jobs?jobName=my-protein-job", headers=HEADERS).json()
 print(status)
 ```
-
----
-
-## 11. Best Practices & Limits
-
-- Upload files **before** job submission and reference them in `settings` as required by the algorithm.
-- Keep `jobName` short; it is reused as a folder name in output storage.
-- Default **rate limit**: *50 requests/minute* per org. Contact support@nanohelix.ai to raise limits.
-- Presigned URLs expire. If you receive `403 ExpiredToken`, fetch a fresh URL.
 
 ---
 

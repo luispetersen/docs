@@ -1,80 +1,284 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+sidebar_position: 1
 ---
 
-## Get started in three steps
+# Nano Helix API – Quick-Start Guide (v1 · 2024-06)
 
-Get your documentation site running locally and make your first customization.
+Welcome to the Nano Helix **Control-Plane API**. This page walks you through the entire workflow:
 
-### Step 1: Set up your local environment
+1. Authenticate with an `x-api-key`
+2. Upload input files (optional)
+3. Discover available algorithms
+4. Submit a simulation job
+5. Track job progress
+6. Download results
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+Every section includes copy-ready **cURL** and **Python** snippets.
 
-### Step 2: Deploy your changes
+---
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+## 1. Base URL & Authentication
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+```text title="Required header"
+x-api-key: YOUR_LONG_API_KEY
+```
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+Production base URL:
 
-### Step 3: Go live
+```text
+https://api.nanohelix.ai
+```
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+A `401 Unauthorized` response means the header is missing or the key is invalid/disabled.
 
-## Next steps
+---
 
-Now that you have your docs running, explore these key features:
+## 2. Health Check
 
-<CardGroup cols={2}>
+Quick connectivity test:
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
+```bash
+curl -H "x-api-key: $API_KEY" \
+     https://api.nanohelix.ai/health
+```
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
+Successful response:
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
+```json
+{
+  "status": "ok",
+  "orgId": "org_123",
+  "firestoreProject": "nanohelix-prod"
+}
+```
 
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
+---
 
-</CardGroup>
+## 3. Uploading Input Files *(optional)*
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+If your algorithm takes external files (FASTA, PDB, etc.) you will:
+
+1. Ask the control plane for a presigned **PUT** URL.
+2. Upload directly to cloud storage (no size limits from the API layer).
+3. Tell the API once the upload is finished.
+
+### 3.1 Generate a presigned upload URL
+
+```bash
+curl -X PUT \
+     -H "x-api-key: $API_KEY" \
+     "https://api.nanohelix.ai/upload/example.fasta?folder=inputs"
+```
+
+Response (abridged):
+
+```json
+{
+  "status": "ready",
+  "fileId": "file_a1b2c3",
+  "uploadUrl": "https://storage.googleapis.com/bucket/…",
+  "downloadUrl": "https://storage.googleapis.com/bucket/…",
+  "instructions": {
+    "upload": "PUT https://storage.googleapis.com/bucket/…",
+    "headers": { "Content-Type": "text/plain" },
+    "curlExample": "curl -X PUT --data-binary @example.fasta …"
+  }
+}
+```
+
+### 3.2 Upload the file
+
+Run the `curlExample` exactly as returned, or use any S3/GCS-compatible client.
+
+### 3.3 Mark upload complete
+
+```bash
+curl -X POST \
+     -H "x-api-key: $API_KEY" \
+     -H "Content-Type: application/json" \
+     -d '{"size": 1048576}' \
+     "https://api.nanohelix.ai/upload/file_a1b2c3/complete"
+```
+
+---
+
+## 4. Discover Available Algorithms
+
+```bash
+curl -H "x-api-key: $API_KEY" \
+     https://api.nanohelix.ai/algorithms
+```
+
+Example response:
+
+```json
+[
+  { "name": "boltz",       "version": "2.1.1", "status": "online" },
+  { "name": "rfdiffusion", "version": "1.0.0", "status": "online" },
+  { "name": "alphafold",   "version": "2.3.1", "status": "online" }
+]
+```
+
+---
+
+## 5. Submit a Job
+
+```bash
+curl -X POST \
+     -H "x-api-key: $API_KEY" \
+     -H "Content-Type: application/json" \
+     -d @job.json \
+     https://api.nanohelix.ai/submit-job
+```
+
+`job.json` example:
+
+```json title="job.json"
+{
+  "jobName": "my-protein-job",
+  "type": "boltz",
+  "settings": {
+    "sequences": ["MKLLVL..."],
+    "steps": 200
+  },
+  "version": "2.1.1"
+}
+```
+
+✔ **Tips**
+
+- `jobName` must be unique *within your organization*.
+- Submitting the *exact same* JSON again is idempotent (you will get the existing job).
+- Changing anything (settings hash) ⇒ `409 JOB_ALREADY_EXISTS`.
+
+---
+
+## 6. Track Jobs
+
+```
+GET /jobs
+```
+
+Useful query parameters:
+
+| Param               | Example                       | Description                           |
+| ------------------- | ----------------------------- | ------------------------------------- |
+| `jobName`           | `jobName=my-protein-job`      | Exact name search                     |
+| `algorithm`         | `algorithm=boltz`             | Filter by engine                      |
+| `limit` (1-100)     | `limit=50`                    | Pagination size                       |
+| `startKey`          | `startKey=opaque_cursor`      | Cursor for next page                  |
+| `includeSubjobs`    | `includeSubjobs=true`         | Expand batch jobs (if applicable)     |
+
+```bash
+curl -H "x-api-key: $API_KEY" \
+     "https://api.nanohelix.ai/jobs?algorithm=boltz&limit=20"
+```
+
+---
+
+## 7. Download Results
+
+Results are available only when `status = COMPLETED`.
+
+```bash
+curl -X POST \
+     -H "x-api-key: $API_KEY" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "jobName": "my-protein-job",
+           "fileName": "results.zip"  // optional
+         }' \
+     https://api.nanohelix.ai/result
+```
+
+```json
+{
+  "downloadUrl": "https://storage.googleapis.com/bucket/results.zip?X-Amz-Signed..."
+}
+```
+
+The link expires after **1 hour**.
+
+```bash
+curl -o results.zip "https://storage.googleapis.com/…"
+```
+
+---
+
+## 8. List Uploaded Files
+
+```
+GET /files
+```
+
+| Param   | Default | Notes                     |
+| ------- | ------- | ------------------------- |
+| `limit` | 50      | 1-100                     |
+| `folder`| —       | Prefix filter (e.g. `inputs/`)|
+
+```bash
+curl -H "x-api-key: $API_KEY" \
+     "https://api.nanohelix.ai/files?folder=inputs&limit=25"
+```
+
+---
+
+## 9. Error Format
+
+All errors share the same envelope:
+
+```json
+{
+  "error": {
+    "code": "ALGORITHM_NOT_AVAILABLE",
+    "message": "Algorithm 'foo' not available for tenant"
+  }
+}
+```
+
+Check `error.code` **and** the HTTP status (e.g. `400`, `409`, `422`).
+
+---
+
+## 10. Python Quick-Start
+
+```python title="quickstart.py"
+import os, requests, json
+
+API_KEY = os.environ["NANOHELIX_API_KEY"]
+BASE    = "https://api.nanohelix.ai"
+HEADERS = {"x-api-key": API_KEY}
+
+# Submit a job
+payload = {
+    "jobName": "my-protein-job",
+    "type": "boltz",
+    "settings": {
+        "sequences": ["MKLLVL..."],
+        "steps": 200
+    }
+}
+resp = requests.post(f"{BASE}/submit-job", headers=HEADERS, json=payload)
+resp.raise_for_status()
+print(resp.json())
+
+# Poll status
+status = requests.get(f"{BASE}/jobs?jobName=my-protein-job", headers=HEADERS).json()
+print(status)
+```
+
+---
+
+## 11. Best Practices & Limits
+
+- Upload files **before** job submission and reference them in `settings` as required by the algorithm.
+- Keep `jobName` short; it is reused as a folder name in output storage.
+- Default **rate limit**: *50 requests/minute* per org. Contact support@nanohelix.ai to raise limits.
+- Presigned URLs expire. If you receive `403 ExpiredToken`, fetch a fresh URL.
+
+---
+
+### Need help?
+
+Email **support@nanohelix.ai** — include your `jobName` and the full error response (don’t redact `error.code`).
